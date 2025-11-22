@@ -1,3 +1,14 @@
+# AWS Zero Trust Multi-Account Architecture
+
+This diagram illustrates a comprehensive Zero Trust security implementation across AWS Organizations with multi-account governance, Just-in-Time (JIT) access, AI-powered threat detection, and automated incident response.
+
+## Architecture Overview
+
+- **Management Account**: Centralized governance with AWS Organizations, IAM Identity Center, and Service Control Policies
+- **Specialized Accounts**: Security, Logging, Production, DevTest, and Sandbox accounts with distinct roles
+- **Platform Services**: Network microsegmentation, security monitoring, JIT automation, and AI/ML threat detection
+
+```mermaid
 graph TB
     subgraph "Management Account"
         ORG[AWS Organization]
@@ -205,5 +216,36 @@ graph TB
     class S3LOG,FINDS3,FORENSICS3,MLBUCKET dataStyle
     class LAMBDA1,JITCREATE,JITCLEANUP,ISOLATE,LOCKDOWN,REVOKE lambdaStyle
     class SAGEMAKER,RCFMODEL,ANOMALY mlStyle
+```
+
+## Key Components
+
+### Management & Governance
+- **AWS Organizations**: Multi-account structure with specialized Organizational Units
+- **IAM Identity Center**: Centralized identity management with time-limited permission sets
+- **Service Control Policies**: Preventive guardrails across account boundaries
+- **CloudTrail**: Comprehensive audit logging across all accounts
+
+### Security & Monitoring
+- **Security Hub**: Centralized security findings aggregation
+- **GuardDuty**: AI-powered threat detection
+- **Config**: Compliance monitoring and configuration drift detection
+- **Inspector**: Vulnerability assessments for EC2 and container images
+
+### Network Security
+- **VPC Microsegmentation**: Isolated network segments for different workload types
+- **Transit Gateway**: Centralized connectivity with controlled routing
+- **Security Groups & NACLs**: Defense-in-depth network controls
+
+### Automation & Response
+- **JIT Access**: Temporary privilege escalation with automated cleanup
+- **EventBridge**: Event-driven security orchestration
+- **Lambda Functions**: Automated incident response and remediation
+- **SageMaker**: AI/ML powered anomaly detection
+
+### Compliance & Forensics
+- **Audit Manager**: Automated compliance evidence collection
+- **Forensics Lab**: Isolated environment for security investigation
+- **Data Lake**: Centralized security analytics and reporting
 
 
