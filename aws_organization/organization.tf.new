@@ -1,0 +1,25 @@
+# Organizations
+data "aws_organizations_organization" "org" {}
+
+# Get existing OUs
+data "aws_organizations_organizational_units" "root_ous" {
+  parent_id = data.aws_organizations_organization.org.roots[0].id
+}
+
+locals {
+  existing_ous = { for ou in data.aws_organizations_organizational_units.root_ous.children :
+    ou.name => ou.id
+  }
+  ou_names = ["Security", "Logging", "Sandbox", "Prod", "DevTest"]
+  ous_to_create = [
+    for name in local.ou_names :
+    name if !contains(keys(local.existing_ous), name)
+  ]
+}
+
+# Only create OUs that don't exist
+resource "aws_organizations_organizational_unit" "ous" {
+  for_each  = toset(local.ous_to_create)
+  name      = each.value
+  parent_id = data.aws_organizations_organization.org.roots[0].id
+}

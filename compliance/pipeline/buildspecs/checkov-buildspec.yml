@@ -1,0 +1,22 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+    commands:
+      - pip install checkov
+  
+  build:
+    commands:
+      - checkov -d . --framework cloudformation,terraform
+      
+  post_build:
+    commands:
+      - |
+        if [ $CODEBUILD_BUILD_SUCCEEDING = 1 ]; then
+          echo "Checkov scan completed successfully"
+        else
+          echo "Checkov found security issues"
+          exit 1
+        fi

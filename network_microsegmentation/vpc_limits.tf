@@ -1,0 +1,1 @@
+# VPC limit checking has been moved to vpc.tf

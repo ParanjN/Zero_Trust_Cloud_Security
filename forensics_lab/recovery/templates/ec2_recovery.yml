@@ -1,0 +1,92 @@
+description: 'Recover EC2 instance from latest snapshot'
+schemaVersion: '0.3'
+parameters:
+  InstanceId:
+    type: String
+    description: The ID of the failed EC2 instance
+mainSteps:
+  - name: getInstanceDetails
+    action: aws:executeAwsApi
+    inputs:
+      Service: ec2
+      Api: DescribeInstances
+      InstanceIds:
+        - '{{ InstanceId }}'
+    outputs:
+      - Name: subnetId
+        Selector: $.Reservations[0].Instances[0].SubnetId
+      - Name: securityGroupIds
+        Selector: $.Reservations[0].Instances[0].SecurityGroups[*].GroupId
+      - Name: instanceType
+        Selector: $.Reservations[0].Instances[0].InstanceType
+      - Name: keyName
+        Selector: $.Reservations[0].Instances[0].KeyName
+
+  - name: getLatestSnapshot
+    action: aws:executeAwsApi
+    inputs:
+      Service: ec2
+      Api: DescribeSnapshots
+      Filters:
+        - Name: description
+          Values: ['Automated snapshot for {{ InstanceId }}*']
+    outputs:
+      - Name: snapshotId
+        Selector: $.Snapshots[0].SnapshotId
+
+  - name: createVolume
+    action: aws:executeAwsApi
+    inputs:
+      Service: ec2
+      Api: CreateVolume
+      AvailabilityZone: '${region}a'
+      SnapshotId: '{{ getLatestSnapshot.snapshotId }}'
+    outputs:
+      - Name: volumeId
+        Selector: $.VolumeId
+
+  - name: waitForVolume
+    action: aws:waitForAwsResourceProperty
+    inputs:
+      Service: ec2
+      Api: DescribeVolumes
+      VolumeIds:
+        - '{{ createVolume.volumeId }}'
+      PropertySelector: $.Volumes[0].State
+      DesiredValues:
+        - available
+
+  - name: launchNewInstance
+    action: aws:executeAwsApi
+    inputs:
+      Service: ec2
+      Api: RunInstances
+      SubnetId: '{{ getInstanceDetails.subnetId }}'
+      SecurityGroupIds: '{{ getInstanceDetails.securityGroupIds }}'
+      InstanceType: '{{ getInstanceDetails.instanceType }}'
+      KeyName: '{{ getInstanceDetails.keyName }}'
+      MaxCount: 1
+      MinCount: 1
+    outputs:
+      - Name: newInstanceId
+        Selector: $.Instances[0].InstanceId
+
+  - name: waitForInstance
+    action: aws:waitForAwsResourceProperty
+    inputs:
+      Service: ec2
+      Api: DescribeInstances
+      InstanceIds:
+        - '{{ launchNewInstance.newInstanceId }}'
+      PropertySelector: $.Reservations[0].Instances[0].State.Name
+      DesiredValues:
+        - running
+
+  - name: attachVolume
+    action: aws:executeAwsApi
+    inputs:
+      Service: ec2
+      Api: AttachVolume
+      VolumeId: '{{ createVolume.volumeId }}'
+      InstanceId: '{{ launchNewInstance.newInstanceId }}'
+      Device: /dev/sda1

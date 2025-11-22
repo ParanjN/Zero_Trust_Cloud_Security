@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+                    validUntil="2026-10-24T00:00:00Z"
+                    entityID="urn:amazon:webservices">
+    <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+        <md:KeyDescriptor use="signing">
+            <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+                <ds:X509Data>
+                    <ds:X509Certificate>
+MIICYDCCAgmgAwIBAgIBADANBgkqhkiG9w0BAQQFADCBgTELMAkGA1UEBhMCVVMx
+ETAPBgNVBAgTCE5ldyBZb3JrMREwDwYDVQQHEwhOZXcgWW9yazEOMAwGA1UEChMF
+QW1hem4xEDAOBgNVBAsTB0FXUyBTU08xDDAKBgNVBAMTA1NTTzEiMCAGCSqGSIb3
+DQEJARYTbm8tcmVwbHlAYW1hem9uLmNvbTAeFw0yMzEwMjQwMDAwMDBaFw0yNjEw
+MjQwMDAwMDBaMIGBMQswCQYDVQQGEwJVUzERMA8GA1UECBMITmV3IFlvcmsxETAP
+BgNVBAcTCE5ldyBZb3JrMQ4wDAYDVQQKEwVBbWF6bjEQMA4GA1UECxMHQVdTIFNT
+TzEMMAoGA1UEAxMDU1NPMSIwIAYJKoZIhvcNAQkBFhNuby1yZXBseUBhbWF6b24u
+Y29tMFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAKuQJ+mxfdkRU7OxhX9M8E+khCvB
+h+mZ1LqgjE8JuKfxn+GxLxzrWP7qL7xv7p0IHj/qDEX7HJQvEXhM9SoFyqECAwEA
+AaNQME4wHQYDVR0OBBYEFEuKbj4r5SPHnlCaM5O5A5SmnggOMB8GA1UdIwQYMBaA
+FEuKbj4r5SPHnlCaM5O5A5SmnggOMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEE
+BQADQQCpCJHqK5xq5Y+nE3QhEMRqZkZTGzGkV4d8qVEj3tRZaZ1ljXWo6R6rTTNj
+9m6q9wfxpe3dNV7l9RYz7KGj</ds:X509Certificate>
+                </ds:X509Data>
+            </ds:KeyInfo>
+        </md:KeyDescriptor>
+        <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+                               Location="https://portal.sso.us-east-1.amazonaws.com/saml/logout"/>
+        <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+                               Location="https://portal.sso.us-east-1.amazonaws.com/saml/assertion"/>
+    </md:IDPSSODescriptor>
+</md:EntityDescriptor>

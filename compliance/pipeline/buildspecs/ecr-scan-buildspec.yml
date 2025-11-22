@@ -1,0 +1,21 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+  
+  build:
+    commands:
+      - echo "Starting ECR image scan"
+      - aws ecr start-image-scan --repository-name $REPOSITORY_NAME --image-id imageTag=$IMAGE_TAG
+      - aws ecr wait image-scan-complete --repository-name $REPOSITORY_NAME --image-id imageTag=$IMAGE_TAG
+      - |
+        FINDINGS=$(aws ecr describe-image-scan-findings --repository-name $REPOSITORY_NAME --image-id imageTag=$IMAGE_TAG)
+        HIGH_COUNT=$(echo $FINDINGS | jq -r '.imageScanFindings.findingSeverityCounts.HIGH // 0')
+        CRITICAL_COUNT=$(echo $FINDINGS | jq -r '.imageScanFindings.findingSeverityCounts.CRITICAL // 0')
+        
+        if [ $HIGH_COUNT -gt 0 ] || [ $CRITICAL_COUNT -gt 0 ]; then
+          echo "Found $HIGH_COUNT HIGH and $CRITICAL_COUNT CRITICAL vulnerabilities"
+          exit 1
+        fi

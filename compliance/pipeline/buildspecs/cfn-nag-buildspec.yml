@@ -1,0 +1,22 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      ruby: 2.7
+    commands:
+      - gem install cfn-nag
+  
+  build:
+    commands:
+      - cfn_nag_scan --input-path .
+      
+  post_build:
+    commands:
+      - |
+        if [ $CODEBUILD_BUILD_SUCCEEDING = 1 ]; then
+          echo "CFN-Nag scan completed successfully"
+        else
+          echo "CFN-Nag found security issues"
+          exit 1
+        fi

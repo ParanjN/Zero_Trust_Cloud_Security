@@ -1,0 +1,38 @@
+description: 'Recover RDS instance from latest snapshot'
+schemaVersion: '0.3'
+parameters:
+  DBInstanceIdentifier:
+    type: String
+    description: The identifier of the failed RDS instance
+mainSteps:
+  - name: getLatestSnapshot
+    action: aws:executeAwsApi
+    inputs:
+      Service: rds
+      Api: DescribeDBSnapshots
+      DBInstanceIdentifier: '{{ DBInstanceIdentifier }}'
+    outputs:
+      - Name: snapshotIdentifier
+        Selector: $.DBSnapshots[0].DBSnapshotIdentifier
+
+  - name: restoreFromSnapshot
+    action: aws:executeAwsApi
+    inputs:
+      Service: rds
+      Api: RestoreDBInstanceFromDBSnapshot
+      DBInstanceIdentifier: '{{ DBInstanceIdentifier }}-restored'
+      DBSnapshotIdentifier: '{{ getLatestSnapshot.snapshotIdentifier }}'
+      PubliclyAccessible: false
+    outputs:
+      - Name: newDBInstanceIdentifier
+        Selector: $.DBInstance.DBInstanceIdentifier
+
+  - name: waitForDatabase
+    action: aws:waitForAwsResourceProperty
+    inputs:
+      Service: rds
+      Api: DescribeDBInstances
+      DBInstanceIdentifier: '{{ restoreFromSnapshot.newDBInstanceIdentifier }}'
+      PropertySelector: $.DBInstances[0].DBInstanceStatus
+      DesiredValues:
+        - available
