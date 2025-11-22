@@ -1,0 +1,35 @@
+
+Assignment 2 - Project/Thesis Title Submission and Presentation
+Nachiket Paranjape
+Harrisburg University of Science and Technology
+GRAD 695-92- O-2025/Fall - Research Methodology & Writing
+Fall 2025
+Dr. Abrar Qureshi
+September 7th, 2025
+
+
+ 
+
+
+
+
+
+Proposed Title
+An Integrated Framework for Zero Trust Security, Compliance, and Incident Response in AWS
+Introduction
+As organizations start using cloud more and more, it becomes critical to ensure that the projects are visible, compliant and resilient against sophisticated cyberattacks. Traditional models are no longer relevant and sufficient. Zero trust principles have emerged as the new and modern approach to secure dynamic and distributed cloud environments. Additionally, because the complexity of attacks has increased, it demands that the organizations have automations in place which use SIEM and AI detection for rapid and effective response. This applied project proposes to design and implement a multi-layered AWS based cybersecurity framework which integrates Zero trust access, cloud native SIEM, automated incident response, AI driven anomaly detection and an executive risk dashboard.
+The project excites me because it aligns with my professional expertise in AWS and my academic goal of developing practical and impactful solutions. It has a blend of technical architecture, automation and AI which are areas that I am passionate about. This will simulate real world challenges faced by financial institutions making it relevant to industry practices. I already possess foundational skills in AWS and SIEM. I will however need to further expand my knowledge in compliance frameworks and incident orchestration but I feel I will be able to manage.
+Scope and Key components
+I will be focusing on six things as part of this project:
+1.	Zero Trust Cloud Security: I will be implanting granular identity and access management using AWS IAM, SCP and network segmentation with security groups and NACLs
+2.	Cloud native SIEM and IR: I will use AWS Opensearch to ingest logs from cloudtrail, guardduty and VPC flow logs and use automated playbooks in Step functions/Lambda for containment and recovery
+3.	AI Driven threat detection: Leveraging Guardduty and Amazon Sagemaker anomaly detection models to identify insider threats, ransomware patterns and lateral movement.
+4.	Compliance-as-code-framework: Automating security posture assessments with AWS Config and Security Hub aligned with NIST CSF and CIS Benchmarks.
+5.	Executive Dashboard: Business friendly visualization of risk posture, compliance gaps and incident trends via Amazon Quicksight.
+Methodology
+1.	Phase 1: Build secure AWS environment with IAM, VPC Segmentation and monitoring
+2.	Phase 2: Deploying log ingestion pipelines, incident response workflows and AI models
+3.	Phase 3: Implementing compliance as code, simulating ransomware incidents and produce dashboards for leadership
+Conclusion
+This project will be helpful both academically and practically for my cloud security journey. BY uniting Zero Trust, SIEM, automation, AI and compliance into a single framework, it will help address multiple challenges like how to detect, defend and respond to threats while maintaining compliance and trust.
+ 
