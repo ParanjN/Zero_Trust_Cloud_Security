@@ -368,6 +368,253 @@ def lambda_handler(event, context):
 
 ---
 
+## **SECTION 2B: AWS Organizations Foundation (90 seconds)**
+
+### **Code Demo: aws_organization/**
+
+**"Before we had JIT access and network segmentation, we needed to build the organizational foundation. Let me show you how we structure our multi-account environment."**
+
+### **Show organization.tf - Discovering Existing Organization**
+```terraform
+# Get existing organization
+data "aws_organizations_organization" "org" {}
+
+output "organizational_units" {
+  value = local.all_ous
+  description = "Map of all organizational unit names to their IDs"
+}
+```
+
+**"We start by discovering the existing AWS Organization. This is critical - we never assume we're starting from scratch."**
+
+### **Show organizational_units.tf - Smart OU Management**
+```terraform
+# Look up existing organizational units
+data "aws_organizations_organizational_units" "root_ous" {
+  parent_id = data.aws_organizations_organization.org.roots[0].id
+}
+
+locals {
+  # Standard OU configuration
+  ou_config = {
+    "security" = "Security"
+    "logging"  = "Logging"
+    "sandbox"  = "Sandbox"
+    "prod"     = "Prod"
+    "devtest"  = "DevTest"
+  }
+
+  # Map of existing OUs
+  existing_ou_map = {
+    for ou in data.aws_organizations_organizational_units.root_ous.children :
+    lower(ou.name) => ou.id
+    if contains(values(local.ou_config), ou.name)
+  }
+
+  # List of OUs to create (only those that don't exist)
+  ous_to_create = {
+    for name, display_name in local.ou_config :
+    name => display_name
+    if !contains(keys(local.existing_ou_map), name)
+  }
+}
+
+# Create only non-existing organizational units
+resource "aws_organizations_organizational_unit" "ou" {
+  for_each = local.ous_to_create
+
+  name      = each.value
+  parent_id = data.aws_organizations_organization.org.roots[0].id
+}
+```
+
+**"This is production-grade infrastructure code:"**
+1. **Discovery First**: Check what OUs already exist
+2. **Idempotency**: Only create OUs that don't exist
+3. **Case-Insensitive Matching**: Handles "Security" vs "security"
+4. **Merge Strategy**: Combines existing and new OUs into unified map
+
+**"This prevents the dreaded 'OU already exists' error and makes the code truly reusable."**
+
+### **Show policies.tf - Service Control Policies**
+```terraform
+# 1) Deny disabling CloudTrail & GuardDuty
+resource "aws_organizations_policy" "deny_disable_ct_gd" {
+  name        = "DenyDisableCloudTrailGuardDuty"
+  type        = "SERVICE_CONTROL_POLICY"
+  content     = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Deny",
+      Action = [
+        "cloudtrail:StopLogging",
+        "cloudtrail:DeleteTrail",
+        "guardduty:DisassociateFromMasterAccount",
+        "guardduty:DeleteDetector"
+      ],
+      Resource = "*"
+    }]
+  })
+}
+
+# 2) Deny root user actions
+resource "aws_organizations_policy" "deny_root_actions" {
+  name        = "DenyRootActions"
+  type        = "SERVICE_CONTROL_POLICY"
+  content     = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Deny",
+      Action = "*",
+      Resource = "*",
+      Condition = {
+        StringLike = {
+          "aws:PrincipalArn": "arn:aws:iam::*:root"
+        }
+      }
+    }]
+  })
+}
+
+# 3) Restrict geographic regions
+resource "aws_organizations_policy" "restrict_regions" {
+  name        = "RestrictRegions"
+  type        = "SERVICE_CONTROL_POLICY"
+  content     = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Deny",
+      Action = "*",
+      Resource = "*",
+      Condition = {
+        StringNotLike = {
+          "aws:RequestedRegion": var.allowed_regions
+        }
+      }
+    }]
+  })
+}
+```
+
+**"These SCPs are preventive security controls that apply across ALL accounts:"**
+
+1. **Security Service Protection**: No one can disable CloudTrail or GuardDuty - not even account admins
+2. **Root User Denial**: The root user cannot perform ANY actions - forces IAM Identity Center usage
+3. **Geographic Restrictions**: Workloads can only run in approved regions (e.g., us-east-1, us-west-2)
+
+**"Notice these are DENY policies. They override all ALLOW policies. This is defense in depth - even if someone gets admin access, they can't bypass organizational guardrails."**
+
+### **Show cloudtrail.tf - Organization-Wide Audit Trail**
+```terraform
+resource "aws_cloudtrail" "org_trail" {
+  name                          = "organization-trail"
+  is_multi_region_trail         = true
+  include_global_service_events = true
+  is_organization_trail         = true
+  s3_bucket_name                = aws_s3_bucket.log_archive[0].id
+  enable_log_file_validation    = true
+  kms_key_id                    = aws_kms_key.log_bucket_key[0].arn
+
+  depends_on = [
+    data.aws_organizations_organization.org,
+    aws_s3_bucket.log_archive
+  ]
+}
+```
+
+**"This single CloudTrail captures API calls from ALL accounts in the organization:"**
+- **Multi-region**: Logs from all AWS regions
+- **Global Services**: IAM, CloudFront, Route53 events
+- **Organization Trail**: Automatically applies to all member accounts
+- **Log Validation**: Cryptographic hashing to detect tampering
+- **KMS Encryption**: Logs encrypted at rest
+
+**"One trail, centralized logging, complete visibility. Security teams see everything."**
+
+### **Show account_management.tf - Dynamic Account Creation**
+```terraform
+# Create new accounts that don't exist yet
+resource "aws_organizations_account" "new_accounts" {
+  for_each = {
+    for name, config in local.managed_accounts :
+    name => config
+    if !config.exists
+  }
+
+  name      = each.value.name
+  email     = each.value.email
+  parent_id = local.all_ous[lower(each.value.ou_name)]
+  role_name = "OrganizationAccountAccessRole"
+
+  tags = {
+    ManagedBy = "Terraform"
+    Purpose   = each.value.ou_name
+  }
+}
+
+# Manage existing accounts
+resource "aws_organizations_account" "existing_accounts" {
+  for_each = {
+    for name, config in local.managed_accounts :
+    name => config
+    if config.exists && config.account_id != null
+  }
+
+  name      = each.value.name
+  email     = each.value.email
+  parent_id = local.all_ous[lower(each.value.ou_name)]
+  
+  lifecycle {
+    ignore_changes = [name, email]
+  }
+}
+```
+
+**"This code intelligently manages account creation:"**
+1. **Existence Check**: Looks up existing accounts by email
+2. **Conditional Creation**: Only creates accounts that don't exist
+3. **Lifecycle Management**: Prevents Terraform from trying to rename existing accounts
+4. **Automatic OU Assignment**: Places accounts in the correct organizational unit
+5. **Cross-Account Role**: Creates OrganizationAccountAccessRole for central management
+
+**"The result? You can run `terraform apply` safely even if accounts already exist. No 'EMAIL_ALREADY_EXISTS' errors, no manual cleanup."**
+
+### **The Organization Hierarchy**
+
+**"Let's visualize what we've built:"**
+
+```
+AWS Organization (Root)
+├── Service Control Policies
+│   ├── Deny Disable CloudTrail/GuardDuty (ALL OUs)
+│   ├── Deny Root User Actions (ALL OUs)
+│   └── Restrict Regions (Sandbox OU)
+│
+├── Organization CloudTrail → S3 Log Archive Bucket (encrypted)
+│
+└── Organizational Units
+    ├── Security OU
+    │   └── Security Account (GuardDuty, Security Hub, Config, Inspector)
+    │
+    ├── Logging OU
+    │   └── Logging Account (CloudWatch, OpenSearch, Kinesis)
+    │
+    ├── Production OU
+    │   └── Production Account (workloads with strict controls)
+    │
+    ├── DevTest OU
+    │   └── DevTest Account (development with time-limited access)
+    │
+    └── Sandbox OU
+        └── Sandbox Account (innovation with geographic restrictions)
+```
+
+**"Every account inherits organizational policies. Every API call flows to CloudTrail. Every OU has a distinct security posture. This is governance at scale."**
+
+**"This foundation enables everything else - JIT access, network segmentation, compliance monitoring - because we have centralized control with distributed execution."**
+
+---
+
 ## **SECTION 3: Network Microsegmentation (120 seconds)**
 
 ### **Code Demo: network_microsegmentation/**
@@ -933,6 +1180,7 @@ except Exception as e:
 - Opening (Project Context & Introduction): 90 seconds
 - Section 1 (Architecture Deep Dive): 120 seconds
 - Section 2 (JIT Access): 120 seconds
+- Section 2B (AWS Organizations Foundation): 90 seconds
 - Section 3 (Network): 120 seconds
 - Section 4 (Incident Response): 120 seconds
 - Section 5 (Risk/Compliance): 90 seconds
@@ -940,7 +1188,7 @@ except Exception as e:
 - Section 7 (Value): 45 seconds
 - Closing: 30 seconds
 
-**Total: 12 minutes and 45 seconds** (can be adjusted to 10-11 minutes by tightening Sections 2-4 by 15-20 seconds each, or keeping full depth for a comprehensive 12-minute presentation)
+**Total: 14 minutes and 15 seconds** (can be adjusted to 12 minutes by tightening Sections 2-4 by 20-30 seconds each, or keeping full depth for a comprehensive 14-minute presentation)
 
 ---
 
